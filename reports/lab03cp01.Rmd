@@ -1,0 +1,120 @@
+---
+title: "Os 3 tipos de filmes de Cillian Murphy"
+author: "Erick Santana Rodrigues"
+date: "23 de Junho de 2018"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse, warn.conflicts = F)
+library(rvest)
+library(plotly)
+library(cluster)
+library(ggdendro)
+library(gridExtra)
+library(viridis)
+
+source(here::here("code/lib.R"))
+theme_set(theme_report())
+
+knitr::opts_chunk$set(tidy = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      echo = TRUE)
+```
+
+```{r, include=FALSE}
+
+source("../plota_solucoes_hclust.R")
+
+import_data("cillian_murphy")
+filmes <- read_imported_data()
+
+```
+Tendo atuado em mais de 30 filmes desde 1998, Cillian Murphy se destacou em 2005 no papel do doutor Jonathan Crane em Batman Begins, transformando-se em um grande aotor e firmando uma parceria duradoura com o cineasta Christopher Nolan.
+
+Tendo em vista seu sucesso, irei realizar uma série de análises descritivas em cima de sua filmografia, levando em conta os dados presentes no [Rotten Tomatoes](https://www.rottentomatoes.com)
+
+#Visão Geral
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+filmes[order(filmes$ano),]
+
+```
+
+Com uma rápida olhada nos dados é possível ver que o Rotten Tomatoes conta com apenas 14 dos 32 filmes que constam em sua página da [wikipédia](https://pt.wikipedia.org/wiki/Cillian_Murphy) e portanto irei trabalhar apenas com esses.
+
+#Avaliação e bilheteria:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+ggplotly(filmes %>%
+    ggplot(aes(x = avaliacao, y = bilheteria, label = filme, label2 = ano)) +
+    geom_point(), tooltip = c("label", "label2"))
+
+```
+
+Com uma lista extensa de filmes, é fácil de perceber que suas avaliações transitam entre quase os 100% de aprovação e também chega a beirar o zero, tendo pontos por toda a extensão do gráfico, seria possível criar subgrupos de filmes levando em conta as sua avaliações? E quanto a suas bilheterias? Fácilmente podemos ver que grande parte está abaixo dos 200 milhões.
+
+#Agrupamento:
+
+Tendo em mente a existência de diferentes subgrupos de filmes, eu irei realizar um processo de agrupamento nos dados e então decidirei quantos subgrupos existem e quais são eles, mas antes é necessário entender que a presença de escalas diferentes para as avaliações e bilheterias pode comprometer o processo de agrupamento e portanto usarei a escala de log10 para a bilheteria.
+
+##Definindo grupos:
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+agrupamento <- filmes %>%
+    mutate_at(vars(bilheteria, avaliacao), funs(scale)) %>%
+    as.data.frame() %>%
+    column_to_rownames("filme") %>%
+    select(avaliacao, bilheteria) %>%
+    dist(method = "euclidean") %>%
+    hclust(method = "ward.D")
+
+get_grupos <- function(agrupamento, num_grupos){
+    agrupamento %>% 
+        cutree(num_grupos) %>% 
+        as.data.frame() %>% 
+        mutate(label = rownames(.)) %>% 
+        gather(key =  "k", value = "grupo", -label) %>% 
+        mutate(grupo = as.character(grupo))
+}
+
+ggdendrogram(agrupamento, rotate = T, size = 2, theme_dendro = F) +
+    labs(x = "", y = "")
+
+```
+
+Através da visualização do dendograma é possível ver a formação de alguns subgrupos, Anthropoid e Free Fire formam um grupo com 2 componentes, por exemplo. A medida que o gráfico avança para a direita a número de grupos vai diminuindo. Eu diria que parar com 3 grupos é uma boa escolha.
+
+##Plotando grupos
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+atribuicoes = get_grupos(agrupamento, num_grupos = 1:6)
+
+atribuicoes = atribuicoes %>% 
+    left_join(filmes, by = c("label" = "filme"))
+
+ggplotly(atribuicoes %>%
+    filter(k == 3) %>%
+    ggplot(aes(x = avaliacao, y = bilheteria, label = label, label2 = ano, color = grupo)) +
+    geom_point(), tooltip = c("label", "label2"))
+
+```
+
+
+
+![Trilogia Batman.](../images/batman.jpg)
+
+
+

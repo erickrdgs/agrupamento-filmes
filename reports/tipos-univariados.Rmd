@@ -26,6 +26,8 @@ paleta = c("#404E4D",
            "#938BA1",
            "#2D3142",
            "#F4743B")
+
+source("../plota_solucoes_hclust.R")
 ```
 
 ```{r}
