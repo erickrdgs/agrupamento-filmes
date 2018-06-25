@@ -31,7 +31,7 @@ knitr::opts_chunk$set(tidy = FALSE,
                       echo = TRUE)
 ```
 
-```{r, include=FALSE}
+```{r, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
 
 source("../plota_solucoes_hclust.R")
 
@@ -39,9 +39,18 @@ import_data("cillian_murphy")
 filmes <- read_imported_data()
 
 ```
-Tendo atuado em mais de 30 filmes desde 1998, Cillian Murphy se destacou em 2005 no papel do doutor Jonathan Crane em Batman Begins, transformando-se em um grande aotor e firmando uma parceria duradoura com o cineasta Christopher Nolan.
+<center>
+![](../images/Cillian.gif)
+</center>
 
-Tendo em vista seu sucesso, irei realizar uma série de análises descritivas em cima de sua filmografia, levando em conta os dados presentes no [Rotten Tomatoes](https://www.rottentomatoes.com)
+<center>
+Peaky Blinders - BBC Two
+</center>
+
+<br />
+Tendo atuado em mais de 30 filmes desde 1998, Cillian Murphy se destacou em 2005 no papel de Espantalho a.k.a Dr. Jonathan Crane em Batman Begins, transformando-se em um grande ator de Hollywood e firmando uma parceria duradoura com o cineasta Christopher Nolan. 
+
+Tendo em vista seu sucesso, irei realizar uma série de análises descritivas em cima de sua filmografia, levando em conta os dados presentes no [Rotten Tomatoes](https://www.rottentomatoes.com).
 
 #Visão Geral
 
@@ -55,22 +64,24 @@ Com uma rápida olhada nos dados é possível ver que o Rotten Tomatoes conta co
 
 #Avaliação e bilheteria:
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.align="center"}
 
 ggplotly(filmes %>%
     ggplot(aes(x = avaliacao, y = bilheteria, label = filme, label2 = ano)) +
-    geom_point(), tooltip = c("label", "label2"))
+    geom_point() +
+    theme_bw() +
+    ggtitle("Bilheteria (em Doláres) vs Avaliação do Rotten Tomatoes"), tooltip = c("label", "label2"))
 
 ```
 
-Com uma lista extensa de filmes, é fácil de perceber que suas avaliações transitam entre quase os 100% de aprovação e também chega a beirar o zero, tendo pontos por toda a extensão do gráfico, seria possível criar subgrupos de filmes levando em conta as sua avaliações? E quanto a suas bilheterias? Fácilmente podemos ver que grande parte está abaixo dos 200 milhões.
+Com uma lista extensa de filmes, é fácil de perceber que suas avaliações transitam entre quase os 100% de aprovação e também chega a beirar o zero, tendo pontos por toda a extensão do gráfico, seria possível criar subgrupos de filmes levando em conta as sua avaliações? E quanto a suas bilheterias? Fácilmente podemos ver que grande parte está abaixo dos 100 milhões.
 
 #Agrupamento:
 
 Tendo em mente a existência de diferentes subgrupos de filmes, eu irei realizar um processo de agrupamento nos dados e então decidirei quantos subgrupos existem e quais são eles, mas antes é necessário entender que a presença de escalas diferentes para as avaliações e bilheterias pode comprometer o processo de agrupamento e portanto usarei a escala de log10 para a bilheteria.
 
 ##Definindo grupos:
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.align="center"}
 
 agrupamento <- filmes %>%
     mutate_at(vars(bilheteria, avaliacao), funs(scale)) %>%
@@ -89,8 +100,9 @@ get_grupos <- function(agrupamento, num_grupos){
         mutate(grupo = as.character(grupo))
 }
 
-ggdendrogram(agrupamento, rotate = T, size = 2, theme_dendro = F) +
-    labs(x = "", y = "")
+ggdendrogram(agrupamento, rotate = T, size = 2) + 
+    labs(x = "", y = "") +
+    ggtitle("Níveis de similaridade entre os filmes")
 
 ```
 
@@ -98,7 +110,7 @@ Através da visualização do dendograma é possível ver a formação de alguns
 
 ##Plotando grupos
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.align="center"}
 
 atribuicoes = get_grupos(agrupamento, num_grupos = 1:6)
 
@@ -108,13 +120,10 @@ atribuicoes = atribuicoes %>%
 ggplotly(atribuicoes %>%
     filter(k == 3) %>%
     ggplot(aes(x = avaliacao, y = bilheteria, label = label, label2 = ano, color = grupo)) +
-    geom_point(), tooltip = c("label", "label2"))
+    geom_point() +
+    theme_bw() +
+    ggtitle("Os 3 tipos de filme de Cillian Murphy"), tooltip = c("label", "label2"))
 
 ```
-
-
-
-![Trilogia Batman.](../images/batman.jpg)
-
 
 
