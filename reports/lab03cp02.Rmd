@@ -1,0 +1,209 @@
+---
+title: "Os 3 tipos de filmes por proporção de gêneros"
+author: "Erick Santana Rodrigues"
+output:
+  prettydoc::html_pretty:
+    df_print: paged
+    theme: cayman
+    highlight: github
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+
+library(tidyverse)
+library(here)
+library(cluster)
+library(plotly)
+library(ggdendro)
+library(ggfortify)
+library(broom)
+
+source(here::here("code/lib.R"))
+
+theme_set(theme_bw())
+
+knitr::opts_chunk$set(tidy = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      echo = TRUE)
+
+paleta = c("#404E4D",
+           "#92DCE5",
+           "#938BA1",
+           "#2D3142",
+           "#F4743B")
+```
+#Os Dados
+Para a nossa análise teremos à disposição uma série de informações a respeito de 1662 filmes presentes no banco de dados do site [IMDB](https://www.imdb.com). 
+
+```{r, warning=FALSE, message=FALSE}
+
+cl <-read_csv(here("data/character_list5.csv"),
+                      progress = FALSE,
+                      col_types = cols(
+                                    script_id = col_integer(),
+                                    imdb_character_name = col_character(),
+                                    words = col_integer(),
+                                    gender = col_character(),
+                                    age = col_character()
+                                    ))
+
+md <- read_csv(here("data/meta_data7.csv"),
+                      progress = FALSE,
+         col_types = cols(
+                        script_id = col_integer(),
+                        imdb_id = col_character(),
+                        title = col_character(),
+                        year = col_integer(),
+                        gross = col_integer(),
+                        lines_data = col_character()
+                        )) %>%
+  mutate(title = iconv(title,"latin1", "UTF-8"))
+
+movies <- left_join(cl, 
+          md, 
+          by=c("script_id")) %>%
+          group_by(title) %>%
+          drop_na(gross)
+
+```
+
+Antes de usar os dados, irei fazer algumas alterações, criando novas variáveis e eliminando outras. Além de realizar uma filtragem para usar apenas filmes recentes, isto é, de 2010 em diante.
+
+```{r, warning=FALSE, message=FALSE}
+
+movies <- movies %>%
+    group_by(title, year, gross) %>%
+  summarise(
+            fem_words = sum(ifelse(gender == "f",words,0)),
+            man_words = sum(ifelse(gender == "m",words,0)),
+            fem = sum(gender == "f"),
+            man = sum(gender == "m")) %>%
+            filter(man_words != 0) %>%
+            filter(fem_words != 0) %>%
+            filter(gross != 0) %>%
+            filter(year >= 2010)
+
+movies <- movies[order(movies$year),]
+
+movies
+
+```
+Finalmente, nos nossos dados temos as seguintes variáveis para cada filme:
+
+Title       - Título do filme. <br>
+Year        - Ano de lançamento. <br>
+Gross       - Bilheteria (em dólares). <br>
+Fem_words   - Quantidade de falas femininas. <br>
+Man_words   - Quantidade de falas masculinas. <br>
+fem         - Quantidade de personagens femininos <br>
+man         - Quantidade de personagens masculinos <br>
+
+Tendo então esses dados, a dúvida que surge é se é possível classificar diferentes grupos de filmes levando em consideração a proporção de falas masculinas e femininas, bilheteria e quantidade de homens e mulheres no filme.
+
+#Estatística GAP
+
+A GAP compara a solução do agrupamento com cada k com a solução em um dataset onde não há estrutura de grupos. Vamo utilizar essa medida para descobrir uma quantidade ideal de grupos na qual podemos dividir os dados.
+
+##Escalonando dados
+
+Antes de continuar é necessário aplicar uma escala apropriada para os nossos dados.
+
+```{r, warning=FALSE, message=FALSE}
+
+scaled_movies <- movies %>%
+  group_by(title) %>%
+  ungroup() %>%
+  select(title,
+         gross,
+         fem_words,
+         man_words,
+         fem,
+         man)
+
+scaled_movies <- scaled_movies %>%
+                    mutate(gross = log10(gross),
+                           fem_words = log10(fem_words),
+                           man_words = log10(man_words),
+                           fem = log10(fem),
+                           man = log10(man))
+
+```
+
+##K ótimo
+
+```{r, warning=FALSE, message=FALSE}
+
+plot_clusgap = function(clusgap, title="Gap Statistic calculation results"){
+    require("ggplot2")
+    gstab = data.frame(clusgap$Tab, k=1:nrow(clusgap$Tab))
+    p = ggplot(gstab, aes(k, gap)) + geom_line() + geom_point(size=5)
+    p = p + geom_errorbar(aes(ymax=gap+SE.sim, ymin=gap-SE.sim), width = .2)
+    p = p + ggtitle(title)
+    return(p)
+}
+
+gaps <- scaled_movies %>%
+    select(-title)%>%
+    clusGap(FUN = kmeans,
+            nstart = 100,
+            K.max = 8,
+            B = 200,
+            iter.max=30)
+
+plot_clusgap(gaps)
+
+```
+
+Como podemos observar, um K ótimo é o 3, visto que logo após ele à uma queda considerável. Logo, agruparei os dados em 3 grupos.
+
+#Agrupamento
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(31)
+features <- c('gross', 'fem_words', 'man_words', 'fem', 'man')
+
+k <- kmeans(scaled_movies[, features], 3, nstart = 20)
+
+autoplot(k, data=scaled_movies, frame = TRUE)  
+
+```
+
+É possível ver a presença dos 3 grupos de maneira muito clara e com apenas um pequeno overlap entre os grupos 1 e 3
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(31)
+
+km = scaled_movies %>% 
+    select(-title) %>% 
+    kmeans(centers = 3, nstart = 20)
+
+km %>% 
+    augment(scaled_movies) %>% 
+    gather(key = "variável", value = "valor", -title, -.cluster) %>% 
+    ggplot(aes(x = `variável`, y = valor, group = title, colour = .cluster)) + 
+    geom_point(alpha = 0.2) +
+    facet_wrap(~ .cluster, nrow = 3) +
+    coord_flip()
+
+```
+
+Os 3 grupos se comportam de forma parecida como pode ser observado, porém nós podemos classifica-los da seguinte maneira:
+
+Grupo <span style="color:red">vermelho</span>:
+
+- Um grupo com uma quantidade bem menor de mulheres em comparação com os homens e com bem menos falas para elas. O faturamento dos filmes nesse grupo é médio porém ocupa muito espaço, caminhando entre faturamentos altos e baixos.
+
+Grupo <span style="color:green">verde</span>:
+
+- Um grupo cujos filmes tem faturamento baixo e a quantidade de homens e mulheres é parecida, a quantidade de falas para ambos os sexos é alta e bem parecida, porém para as mulheres essa quantidade atinge valores menores.
+
+Grupo <span style="color:blue">azul</span>:
+
+- Um grupo com uma quantidade menor de personagens femininas, mas ainda assim próxima da quantidade de personagens masculinos. Com um faturamento razoável, puxando para o lado esquerdo e uma quantidade de falas alta e parecida para ambos os sexos.
+
+Uma coisa comum em todos os grupos é que dificilmente existem mais mulheres do que homens em filmes e que raramente elas tem mais falas do que o sexo masculino.

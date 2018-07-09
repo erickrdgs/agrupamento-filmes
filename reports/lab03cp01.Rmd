@@ -65,7 +65,7 @@ Com uma rápida olhada nos dados é possível ver que o Rotten Tomatoes conta co
 
 #Avaliação e bilheteria
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE}
 
 ggplotly(filmes %>%
     ggplot(aes(x = avaliacao, y = bilheteria, label = filme, label2 = ano)) +
@@ -84,7 +84,7 @@ Tendo em mente a existência de diferentes subgrupos de filmes, eu irei realizar
 
 ##Definindo grupos
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE}
 
 agrupamento <- filmes %>%
     mutate_at(vars(bilheteria, avaliacao), funs(scale)) %>%
@@ -114,7 +114,7 @@ Através da visualização do dendograma é possível ver a formação de alguns
 
 ##Plotando grupos
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE}
 
 atribuicoes = get_grupos(agrupamento, num_grupos = 1:6)
 

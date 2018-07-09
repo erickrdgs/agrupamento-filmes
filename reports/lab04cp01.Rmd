@@ -1,0 +1,86 @@
+---
+title: "Laboratório 04 checkpoint 01"
+author: "Erick Santana Rodrigues"
+output:
+  prettydoc::html_pretty:
+    df_print: paged
+    theme: cayman
+    highlight: github
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r, setup, include=FALSE}
+
+library(tidyverse, warn.conflicts = F)
+library(here)
+
+knitr::opts_chunk$set(tidy = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      echo = TRUE)
+
+github <- read.csv(here("data/github.csv"))
+
+```
+
+Nesse laboratório irei usar um csv contendo a contagem de quantas pessoas editaram arquivos com diferentes extensões em cada dia de 2016 e 2017 no [github](github.com). 
+
+
+#Visão geral
+
+Os dados do csv podem ser vistos logo abaixo:
+
+```{r, warning=FALSE, message=FALSE}
+
+github
+
+```
+
+
+#Perguntas
+
+Realizarei uma filtagrem para obter apenas os dados sobre as extensões .html e .json antes de responder algumas perguntas.
+
+```{r, warning=FALSE, message=FALSE}
+
+javapy <- github %>%
+    filter(file_extension == "html" | file_extension == "json") %>%
+    mutate(the_month = ifelse(the_month < 10, paste(0, the_month, sep = ""), the_month),
+           month_day = ifelse(month_day < 10, paste(0, month_day, sep = ""), month_day))
+
+javapy$date <- do.call(paste, c(javapy[c("the_year", "the_month", "month_day")], sep=""))
+
+javapy <- javapy %>%
+    mutate(date = as.Date(as.character(date), "%Y%m%d"),
+           weekday = weekdays(as.Date(date, "%Y%m%d")),
+           weekend = ifelse(weekday == "sábado" | weekday == "domingo", TRUE, FALSE))
+
+javapy$month_day <- NULL
+javapy$the_month <- NULL
+javapy$the_year <- NULL
+javapy$weekday <- NULL
+
+javapy
+
+```
+
+##Popularidade na semana e nos fins de semana
+
+Existe uma diferença significativa na popularidade para cada uma das linguagens durante a semana e durante o fim de semana? Essa diferença é grande?
+
+```{r, warning=FALSE, message=FALSE}
+
+```
+
+
+##Diferença de popularidade
+
+Existe uma diferença significativa entre a popularidade das duas linguagens nos fins de semana? 
+
+```{r, warning=FALSE, message=FALSE}
+
+```
