@@ -17,6 +17,8 @@ text-align: justify}
 
 library(tidyverse, warn.conflicts = F)
 library(here)
+library(Johnson)
+library(plotly)
 
 knitr::opts_chunk$set(tidy = FALSE,
                       fig.width = 6,
@@ -43,12 +45,12 @@ github
 
 #Perguntas
 
-Realizarei uma filtagrem para obter apenas os dados sobre as extensões .html e .json antes de responder algumas perguntas.
+Realizarei uma filtagrem para obter apenas os dados sobre as extensões .java e .py antes de responder algumas perguntas.
 
 ```{r, warning=FALSE, message=FALSE}
 
 javapy <- github %>%
-    filter(file_extension == "html" | file_extension == "json") %>%
+    filter(file_extension == "java" | file_extension == "py") %>%
     mutate(the_month = ifelse(the_month < 10, paste(0, the_month, sep = ""), the_month),
            month_day = ifelse(month_day < 10, paste(0, month_day, sep = ""), month_day))
 
@@ -74,8 +76,43 @@ Existe uma diferença significativa na popularidade para cada uma das linguagens
 
 ```{r, warning=FALSE, message=FALSE}
 
+ggplot(javapy, aes(x=users, color = weekend)) +
+    geom_density() +
+    geom_vline(aes(xintercept=mean(users, na.rm=T)), 
+               color="red", linetype = "dashed", size=.5)
+
+ggplot(javapy, aes(x = weekend, y = users)) +
+    geom_boxplot()
+
+qqnorm(javapy$users)
+qqline(javapy$users, col = "red")
+
+adx <- RE.ADT(javapy$users)
+
+adx
+
+x_johnson <- RE.Johnson(javapy$users)
+
+x_johnson
+
+hist(x_johnson$transformed, breaks = 25, col = rgb(0.9, 0.1, 0.1, 0.5))
+
+qqnorm(x_johnson$transformed)
+qqline(x_johnson$transformed, col = "red")
+
+javapy$users <- x_johnson$transformed
+
+ggplot(javapy, aes(x=users)) +
+    geom_density() +
+    geom_vline(aes(xintercept=mean(users, na.rm=T)), 
+               color="red", linetype = "dashed", size=.5)
+
+ggplot(javapy, aes(x = weekend, y = users)) +
+    geom_boxplot()
+
 ```
 
+Primeiramente analisei o gráfico de densidade para saber se a distribuição dos dados é normal ou não e como pode ser observado logo acima ela não é. Tendo em mente isso irei fazer as alterações necessárias.
 
 ##Diferença de popularidade
 
